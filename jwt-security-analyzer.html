@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JWT Security Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root {
+      --bg-primary: #0f1117;
+      --bg-secondary: #1a1d27;
+      --bg-card: #1e2130;
+      --bg-card-hover: #252840;
+      --border: #2e3354;
+      --border-light: #3d4466;
+      --text-primary: #e8eaf6;
+      --text-secondary: #9ba3c7;
+      --text-muted: #5c6490;
+      --accent: #6c63ff;
+      --accent-light: #8b85ff;
+      --accent-dim: #2d2860;
+      --green: #22c997;
+      --green-dim: #0d3d2e;
+      --red: #ff5f5f;
+      --red-dim: #3d1515;
+      --yellow: #f5c242;
+      --yellow-dim: #3d2e0a;
+      --blue: #4da6ff;
+      --blue-dim: #0d2640;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+
+    /* Header gradient line */
+    .header-line {
+      height: 3px;
+      background: linear-gradient(90deg, #6c63ff, #4da6ff, #22c997);
+    }
+
+    /* Token input */
+    #token-input {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 13px;
+      resize: vertical;
+      transition: border-color 0.2s;
+      width: 100%;
+      min-height: 110px;
+    }
+    #token-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+    }
+    #token-input::placeholder { color: var(--text-muted); }
+
+    /* Buttons */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-primary:active { transform: scale(0.97); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent-light);
+      background: var(--accent-dim);
+    }
+
+    .btn-copy {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+    .btn-copy:hover {
+      border-color: var(--accent);
+      color: var(--accent-light);
+    }
+    .btn-copy.copied {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    /* JSON display */
+    .json-display {
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+      color: var(--text-primary);
+    }
+
+    .json-key { color: #82b4ff; }
+    .json-string { color: #a8e6a3; }
+    .json-number { color: #f5c242; }
+    .json-bool { color: #ff9a6c; }
+    .json-null { color: #9b9b9b; }
+
+    /* Summary badge */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .status-safe {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(34,201,151,0.3);
+    }
+    .status-risky {
+      background: var(--red-dim);
+      color: var(--red);
+      border: 1px solid rgba(255,95,95,0.3);
+    }
+    .status-warning {
+      background: var(--yellow-dim);
+      color: var(--yellow);
+      border: 1px solid rgba(245,194,66,0.3);
+    }
+
+    /* Status dot */
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-safe { background: var(--green); }
+    .dot-risky { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    .dot-warn { background: var(--yellow); }
+
+    /* Warning/Info boxes */
+    .alert {
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .alert:last-child { margin-bottom: 0; }
+    .alert-danger {
+      background: var(--red-dim);
+      border: 1px solid rgba(255,95,95,0.25);
+      color: var(--red);
+    }
+    .alert-warning {
+      background: var(--yellow-dim);
+      border: 1px solid rgba(245,194,66,0.25);
+      color: var(--yellow);
+    }
+    .alert-info {
+      background: var(--blue-dim);
+      border: 1px solid rgba(77,166,255,0.25);
+      color: var(--blue);
+    }
+    .alert-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+    .alert-desc {
+      font-size: 12px;
+      opacity: 0.8;
+      line-height: 1.5;
+    }
+    .alert-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* Meta fields */
+    .meta-row {
+      display: flex;
+      align-items: flex-start;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+    }
+    .meta-row:last-child { border-bottom: none; }
+    .meta-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      width: 80px;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .meta-value {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-family: 'Fira Code', monospace;
+      word-break: break-all;
+    }
+    .meta-value.expired { color: var(--red); }
+    .meta-value.valid { color: var(--green); }
+    .meta-value.missing {
+      color: var(--text-muted);
+      font-style: italic;
+      font-family: inherit;
+    }
+
+    /* Chip/tag */
+    .chip {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'Fira Code', monospace;
+    }
+    .chip-alg-safe { background: var(--green-dim); color: var(--green); }
+    .chip-alg-danger { background: var(--red-dim); color: var(--red); }
+    .chip-alg-warn { background: var(--yellow-dim); color: var(--yellow); }
+
+    /* Parts highlight */
+    .jwt-part { cursor: pointer; border-radius: 3px; padding: 1px 0; transition: opacity 0.15s; }
+    .jwt-part:hover { opacity: 0.8; }
+    .jwt-header-color { color: #f5a623; }
+    .jwt-payload-color { color: #7ed321; }
+    .jwt-sig-color { color: #bd10e0; }
+
+    /* Section divider */
+    .section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    /* Hidden state */
+    .hidden { display: none !important; }
+
+    /* Loading pulse */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+    /* Responsive grid */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top accent line -->
+  <div class="header-line"></div>
+
+  <!-- Header -->
+  <header style="border-bottom: 1px solid var(--border); padding: 20px 0;">
+    <div style="max-width: 960px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: gap-y-8px;">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <div style="width:36px;height:36px;border-radius:9px;background:var(--accent-dim);border:1px solid rgba(108,99,255,0.4);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div>
+          <h1 style="font-size:17px;font-weight:700;color:var(--text-primary);line-height:1.2;">JWT Security Analyzer</h1>
+          <p style="font-size:11px;color:var(--text-muted);margin-top:2px;">Decode, inspect, and audit JSON Web Tokens</p>
+        </div>
+      </div>
+      <a href="https://jwt.io/introduction" target="_blank"
+         style="font-size:12px;color:var(--text-muted);text-decoration:none;border:1px solid var(--border);padding:6px 12px;border-radius:6px;display:flex;align-items:center;gap:5px;transition:all 0.2s;"
+         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent-light)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+        JWT Docs
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main style="max-width:960px; margin:0 auto; padding:28px 20px 60px;">
+
+    <!-- Input Section -->
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">
+        <span class="card-title">Paste JWT Token</span>
+        <span style="font-size:11px;color:var(--text-muted);">3-part dot-separated Base64 string</span>
+      </div>
+      <div class="card-body">
+        <textarea id="token-input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"></textarea>
+
+        <!-- JWT parts legend (shown after parse) -->
+        <div id="jwt-parts-visual" class="hidden" style="margin-top:10px;padding:10px 14px;background:var(--bg-primary);border-radius:8px;font-family:'Fira Code',monospace;font-size:12px;line-height:1.8;word-break:break-all;">
+          <div style="font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;font-family:inherit;">Token structure</div>
+          <span id="part-header" class="jwt-part jwt-header-color"></span>.<span id="part-payload" class="jwt-part jwt-payload-color"></span>.<span id="part-sig" class="jwt-part jwt-sig-color"></span>
+          <div style="display:flex;gap:16px;margin-top:8px;">
+            <span style="font-size:10px;color:#f5a623;">■ Header</span>
+            <span style="font-size:10px;color:#7ed321;">■ Payload</span>
+            <span style="font-size:10px;color:#bd10e0;">■ Signature</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="analyzeToken()">
+            <span style="display:flex;align-items:center;gap:6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Analyze Token
+            </span>
+          </button>
+          <button class="btn-secondary" onclick="loadSample()">Load Sample</button>
+          <button class="btn-secondary" onclick="clearAll()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-box" class="hidden alert alert-danger" style="margin-bottom:16px;">
+      <span class="alert-icon">✕</span>
+      <div>
+        <div class="alert-title">Invalid JWT Token</div>
+        <div class="alert-desc" id="error-msg"></div>
+      </div>
+    </div>
+
+    <!-- Results Area -->
+    <div id="results" class="hidden">
+
+      <!-- Summary Bar -->
+      <div id="summary-bar" class="card" style="margin-bottom:20px;">
+        <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:6px;font-weight:600;">Security Assessment</div>
+            <div id="status-badge"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="summary-chips"></div>
+        </div>
+      </div>
+
+      <!-- Warnings section -->
+      <div id="warnings-section" class="hidden" style="margin-bottom:20px;">
+        <div class="section-label">Security Warnings</div>
+        <div class="card">
+          <div class="card-body" id="warnings-container"></div>
+        </div>
+      </div>
+
+      <!-- Meta info -->
+      <div style="margin-bottom:20px;">
+        <div class="section-label">Token Claims</div>
+        <div class="card">
+          <div class="card-body" id="meta-container"></div>
+        </div>
+      </div>
+
+      <!-- Decoded Header + Payload -->
+      <div class="results-grid" style="margin-bottom:20px;">
+        <!-- Header -->
+        <div>
+          <div class="section-label">Header</div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="color:#f5a623;">Header</span>
+              <button class="btn-copy" id="copy-header" onclick="copySection('header-json', 'copy-header')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="json-display" id="header-json"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payload -->
+        <div>
+          <div class="section-label">Payload</div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title" style="color:#7ed321;">Payload</span>
+              <button class="btn-copy" id="copy-payload" onclick="copySection('payload-json', 'copy-payload')">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="json-display" id="payload-json"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full Token Copy -->
+      <div>
+        <div class="section-label">Full Token</div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Raw JWT</span>
+            <button class="btn-copy" id="copy-full" onclick="copyFullToken()">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy Token
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="full-token-display" style="font-family:'Fira Code',monospace;font-size:11.5px;color:var(--text-secondary);word-break:break-all;line-height:1.7;"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /results -->
+  </main>
+
+  <script>
+    // ─── Utilities ─────────────────────────────────────────────────────────────
+
+    function base64urlDecode(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      try {
+        return JSON.parse(atob(str));
+      } catch {
+        throw new Error('Failed to decode base64url segment.');
+      }
+    }
+
+    function syntaxHighlight(json) {
+      if (typeof json !== 'string') {
+        json = JSON.stringify(json, null, 2);
+      }
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function(match) {
+        let cls = 'json-number';
+        if (/^"/.test(match)) {
+          cls = /:$/.test(match) ? 'json-key' : 'json-string';
+        } else if (/true|false/.test(match)) {
+          cls = 'json-bool';
+        } else if (/null/.test(match)) {
+          cls = 'json-null';
+        }
+        return `<span class="${cls}">${escapeHtml(match)}</span>`;
+      });
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatTimestamp(ts) {
+      if (!ts) return null;
+      const d = new Date(ts * 1000);
+      return d.toUTCString().replace('GMT', 'UTC') + ` (${d.toLocaleDateString()})`;
+    }
+
+    function copyText(text, btnId) {
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+        }, 1800);
+      });
+    }
+
+    function copySection(elementId, btnId) {
+      const el = document.getElementById(elementId);
+      copyText(el.innerText, btnId);
+    }
+
+    function copyFullToken() {
+      const token = document.getElementById('token-input').value.trim();
+      copyText(token, 'copy-full');
+    }
+
+    // ─── Expiry duration helper ─────────────────────────────────────────────────
+
+    function getDurationFromNow(ts) {
+      const now = Math.floor(Date.now() / 1000);
+      const diff = ts - now;
+      if (diff <= 0) return { expired: true, label: 'Expired' };
+      const abs = Math.abs(diff);
+      if (abs < 60) return { expired: false, label: `${abs}s remaining` };
+      if (abs < 3600) return { expired: false, label: `${Math.round(abs/60)}m remaining` };
+      if (abs < 86400) return { expired: false, label: `${(abs/3600).toFixed(1)}h remaining` };
+      return { expired: false, label: `${Math.round(abs/86400)}d remaining` };
+    }
+
+    function getTokenDuration(iat, exp) {
+      if (!iat || !exp) return null;
+      const secs = exp - iat;
+      if (secs < 60) return `${secs}s`;
+      if (secs < 3600) return `${Math.round(secs/60)}m`;
+      if (secs < 86400) return `${(secs/3600).toFixed(1)}h`;
+      return `${(secs/86400).toFixed(1)} days`;
+    }
+
+    // ─── Main analysis ──────────────────────────────────────────────────────────
+
+    function analyzeToken() {
+      const raw = document.getElementById('token-input').value.trim();
+      hideError();
+      hide('results');
+
+      if (!raw) { showError('Please paste a JWT token to analyze.'); return; }
+
+      const parts = raw.split('.');
+      if (parts.length !== 3) {
+        showError(`A JWT must have exactly 3 parts separated by dots. Found ${parts.length} part(s).`);
+        return;
+      }
+
+      let header, payload;
+      try { header = base64urlDecode(parts[0]); }
+      catch { showError('Could not decode header — check that the token is a valid JWT.'); return; }
+      try { payload = base64urlDecode(parts[1]); }
+      catch { showError('Could not decode payload — check that the token is a valid JWT.'); return; }
+
+      // Show JWT parts visual
+      const pv = document.getElementById('jwt-parts-visual');
+      document.getElementById('part-header').textContent = parts[0];
+      document.getElementById('part-payload').textContent = parts[1];
+      document.getElementById('part-sig').textContent = parts[2];
+      pv.classList.remove('hidden');
+
+      // Render decoded JSON
+      document.getElementById('header-json').innerHTML = syntaxHighlight(JSON.stringify(header, null, 2));
+      document.getElementById('payload-json').innerHTML = syntaxHighlight(JSON.stringify(payload, null, 2));
+
+      // Full token display (colorized parts)
+      document.getElementById('full-token-display').innerHTML =
+        `<span style="color:#f5a623;">${escapeHtml(parts[0])}</span>.` +
+        `<span style="color:#7ed321;">${escapeHtml(parts[1])}</span>.` +
+        `<span style="color:#bd10e0;">${escapeHtml(parts[2])}</span>`;
+
+      // ─── Security checks ──────────────────────────────────────────────────────
+
+      const now = Math.floor(Date.now() / 1000);
+      const alg = header.alg || null;
+      const exp = payload.exp || null;
+      const iat = payload.iat || null;
+      const iss = payload.iss || null;
+      const aud = payload.aud || null;
+
+      const warnings = [];
+
+      // 1. Algorithm is "none"
+      if (alg && alg.toLowerCase() === 'none') {
+        warnings.push({
+          level: 'danger',
+          icon: '⚠',
+          title: 'Algorithm "none" detected',
+          desc: 'The "none" algorithm means the token has no signature — anyone can forge it. This is a critical vulnerability (CVE-2015-9235 pattern). Never accept tokens with alg=none in production.'
+        });
+      }
+
+      // 2. Token expired
+      let isExpired = false;
+      if (exp) {
+        isExpired = exp < now;
+        if (isExpired) {
+          const minsAgo = Math.round((now - exp) / 60);
+          warnings.push({
+            level: 'danger',
+            icon: '⏰',
+            title: 'Token is expired',
+            desc: `This token expired ${minsAgo > 1440 ? Math.round(minsAgo/1440) + ' days' : minsAgo + ' minutes'} ago. Expired tokens should be rejected immediately to prevent replay attacks.`
+          });
+        }
+      } else {
+        warnings.push({
+          level: 'warning',
+          icon: '⏱',
+          title: 'No expiration time (exp)',
+          desc: 'Tokens without an expiration never become invalid on their own. A stolen token could be used indefinitely. Always set exp to limit the token\'s lifetime.'
+        });
+      }
+
+      // 3. Expiry longer than 24 hours
+      if (exp && iat && !isExpired) {
+        const lifetime = exp - iat;
+        if (lifetime > 86400) {
+          const days = (lifetime / 86400).toFixed(1);
+          warnings.push({
+            level: 'warning',
+            icon: '📅',
+            title: `Long token lifetime (${days} days)`,
+            desc: 'Token lifetime exceeds 24 hours. Long-lived tokens increase the window of risk if stolen. Consider shorter lifetimes paired with refresh tokens for better security.'
+          });
+        }
+      }
+
+      // 4. Missing iss
+      if (!iss) {
+        warnings.push({
+          level: 'warning',
+          icon: '🏢',
+          title: 'Missing issuer (iss) claim',
+          desc: 'The iss claim identifies who issued the token. Without it, there\'s no way to verify the token came from a trusted source, making cross-service token substitution attacks easier.'
+        });
+      }
+
+      // 5. Missing aud
+      if (!aud) {
+        warnings.push({
+          level: 'warning',
+          icon: '🎯',
+          title: 'Missing audience (aud) claim',
+          desc: 'The aud claim restricts which service may accept this token. Without it, a token intended for one service could be replayed against another (audience confusion attack).'
+        });
+      }
+
+      // ─── Render results ───────────────────────────────────────────────────────
+
+      renderSummary(warnings, alg);
+      renderWarnings(warnings);
+      renderMeta(header, payload, alg, exp, iat, iss, aud, now);
+
+      show('results');
+      document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function renderSummary(warnings, alg) {
+      const hasDanger  = warnings.some(w => w.level === 'danger');
+      const hasWarning = warnings.some(w => w.level === 'warning');
+      const badge = document.getElementById('status-badge');
+      const chips = document.getElementById('summary-chips');
+
+      if (hasDanger) {
+        badge.innerHTML = `<span class="status-badge status-risky"><span class="dot dot-risky"></span> Risky — Critical issues found</span>`;
+      } else if (hasWarning) {
+        badge.innerHTML = `<span class="status-badge status-warning"><span class="dot dot-warn"></span> Caution — Warnings present</span>`;
+      } else {
+        badge.innerHTML = `<span class="status-badge status-safe"><span class="dot dot-safe"></span> Looks Safe — No issues detected</span>`;
+      }
+
+      // Summary stat chips
+      const dangerCount  = warnings.filter(w => w.level === 'danger').length;
+      const warnCount    = warnings.filter(w => w.level === 'warning').length;
+      chips.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--bg-secondary);border:1px solid var(--border);">
+          <span style="font-size:11px;color:var(--text-muted);">Critical</span>
+          <span style="font-size:14px;font-weight:700;color:${dangerCount > 0 ? 'var(--red)' : 'var(--text-secondary)'};">${dangerCount}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--bg-secondary);border:1px solid var(--border);">
+          <span style="font-size:11px;color:var(--text-muted);">Warnings</span>
+          <span style="font-size:14px;font-weight:700;color:${warnCount > 0 ? 'var(--yellow)' : 'var(--text-secondary)'};">${warnCount}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--bg-secondary);border:1px solid var(--border);">
+          <span style="font-size:11px;color:var(--text-muted);">Algorithm</span>
+          <span style="font-size:13px;font-weight:700;font-family:'Fira Code',monospace;color:${alg && alg.toLowerCase()==='none' ? 'var(--red)' : 'var(--text-primary)'};">${alg || '—'}</span>
+        </div>
+      `;
+    }
+
+    function renderWarnings(warnings) {
+      const section = document.getElementById('warnings-section');
+      const container = document.getElementById('warnings-container');
+      if (!warnings.length) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      container.innerHTML = warnings.map(w => `
+        <div class="alert alert-${w.level}">
+          <span class="alert-icon">${w.icon}</span>
+          <div>
+            <div class="alert-title">${escapeHtml(w.title)}</div>
+            <div class="alert-desc">${escapeHtml(w.desc)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderMeta(header, payload, alg, exp, iat, iss, aud, now) {
+      const container = document.getElementById('meta-container');
+
+      // Algorithm chip style
+      let algChipClass = 'chip-alg-warn';
+      if (!alg) algChipClass = 'chip-alg-warn';
+      else if (alg.toLowerCase() === 'none') algChipClass = 'chip-alg-danger';
+      else if (/^RS|^ES|^PS/i.test(alg)) algChipClass = 'chip-alg-safe';
+      else algChipClass = 'chip-alg-warn'; // HS* is symmetric — acceptable but weaker
+
+      // Expiry display
+      let expHtml = `<span class="meta-value missing">Not set</span>`;
+      if (exp) {
+        const dur = getDurationFromNow(exp);
+        expHtml = `<span class="meta-value ${dur.expired ? 'expired' : 'valid'}">${formatTimestamp(exp)} — ${dur.label}</span>`;
+      }
+
+      // Issued at
+      let iatHtml = `<span class="meta-value missing">Not set</span>`;
+      if (iat) iatHtml = `<span class="meta-value">${formatTimestamp(iat)}</span>`;
+
+      // Lifetime
+      const lifetime = getTokenDuration(iat, exp);
+      let lifetimeHtml = `<span class="meta-value missing">N/A</span>`;
+      if (lifetime) {
+        const secs = exp - iat;
+        lifetimeHtml = `<span class="meta-value ${secs > 86400 ? 'expired' : 'valid'}">${lifetime}</span>`;
+      }
+
+      container.innerHTML = `
+        <div class="meta-row">
+          <span class="meta-label">Algorithm</span>
+          <span class="chip ${algChipClass}">${escapeHtml(alg || 'missing')}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Type</span>
+          <span class="meta-value">${escapeHtml(header.typ || '—')}</span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Issuer</span>
+          ${iss ? `<span class="meta-value">${escapeHtml(iss)}</span>` : `<span class="meta-value missing">Not set</span>`}
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Audience</span>
+          ${aud ? `<span class="meta-value">${escapeHtml(Array.isArray(aud) ? aud.join(', ') : aud)}</span>` : `<span class="meta-value missing">Not set</span>`}
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Subject</span>
+          ${payload.sub ? `<span class="meta-value">${escapeHtml(payload.sub)}</span>` : `<span class="meta-value missing">Not set</span>`}
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Issued At</span>
+          ${iatHtml}
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Expires</span>
+          ${expHtml}
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Lifetime</span>
+          ${lifetimeHtml}
+        </div>
+      `;
+    }
+
+    // ─── UI helpers ─────────────────────────────────────────────────────────────
+
+    function show(id) { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id) { document.getElementById(id).classList.add('hidden'); }
+    function hideError() { document.getElementById('error-box').classList.add('hidden'); }
+    function showError(msg) {
+      document.getElementById('error-msg').textContent = msg;
+      document.getElementById('error-box').classList.remove('hidden');
+      document.getElementById('jwt-parts-visual').classList.add('hidden');
+    }
+
+    function clearAll() {
+      document.getElementById('token-input').value = '';
+      hide('results');
+      hideError();
+      document.getElementById('jwt-parts-visual').classList.add('hidden');
+    }
+
+    function loadSample() {
+      // A well-known sample JWT (signed with HS256, expired — good for demo)
+      document.getElementById('token-input').value =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c3IteGsyOWQiLCJuYW1lIjoiQWxpY2UgU21pdGgiLCJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNTE2MjM5MDIyLCJleHAiOjE1MTYzMjU0MjJ9.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+      analyzeToken();
+    }
+
+    // Allow Enter shortcut (Ctrl/Cmd+Enter) to analyze
+    document.getElementById('token-input').addEventListener('keydown', function(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyzeToken();
+    });
+  </script>
+</body>
+</html>
