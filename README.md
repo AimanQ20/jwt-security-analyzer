@@ -39,7 +39,9 @@ This tool helps developers quickly identify these issues.
 
 ## 📸 Screenshot
 
-> (Add a screenshot here)
+> <img width="1918" height="942" alt="image" src="https://github.com/user-attachments/assets/258eb23f-2ae0-48ba-9f7a-613e635b467c" />
+<img width="1917" height="1008" alt="image" src="https://github.com/user-attachments/assets/5c5faf7b-982a-4d05-9cbb-0bd1071c2cc7" />
+
 
 ---
 
@@ -77,6 +79,6 @@ Try pasting:
 ##  Installation
 
 ```bash
-git clone https://github.com/your-username/jwt-security-analyzer.git
+git clone https://github.com/AimanQ20/jwt-security-analyzer.git
 cd jwt-security-analyzer
 open index.html
